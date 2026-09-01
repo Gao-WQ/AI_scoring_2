@@ -7,6 +7,8 @@
 """
 from __future__ import annotations
 
+import numpy as np
+
 from features.features import feature_distance
 
 DIMENSIONS = ("D", "E", "F", "G", "H", "I")
@@ -92,3 +94,75 @@ def map_scores(
             min_score=min_score,
         )
     return scores
+
+
+def map_scores_batch(
+    sample_feats_list: list[dict],
+    anchor_feats: dict,
+    dims_cfg: dict,
+    ratios: dict | None = None,
+    step: float = 0.5,
+    min_score: float = 1.0,
+    calibration: dict | None = None,
+) -> tuple[list[dict | None], list[int]]:
+    """批量映射：样本特征列表 → 六维分列表。
+
+    calibration（可选，默认 None=关闭）：
+      {"enabled": true, "fair_percentile": 0.5, "worst_percentile": 0.9}
+      当锚点刻度过严（样本偏差普遍超过最差锚点）时，把 fair/worst 刻度放宽到
+      样本偏差分布的 50/90 分位（取锚点值与分位值的较大者），保证分数分布不被压死。
+      锚点仍决定“完美=满分”的位置，校准只放宽中低段刻度。
+    返回 (分数列表[无效样本为 None], 无效样本索引列表)。
+    """
+    ratios = ratios or DEFAULT_RATIOS
+    cal = calibration or {}
+    enable_cal = bool(cal.get("enabled", False))
+    fair_pct = float(cal.get("fair_percentile", 0.5))
+    worst_pct = float(cal.get("worst_percentile", 0.9))
+
+    perfect = anchor_feats["perfect"]
+    d_fair_anchor = {dim: feature_distance(anchor_feats["fair"], perfect, dim) for dim in DIMENSIONS}
+    d_worst_anchor = {dim: feature_distance(anchor_feats["worst"], perfect, dim) for dim in DIMENSIONS}
+
+    # 第一遍：逐样本偏差（同时定位无效样本）
+    sample_ds: dict[str, list[float]] = {dim: [] for dim in DIMENSIONS}
+    invalid: list[int] = []
+    valid_feats: list[tuple[int, dict]] = []
+    for idx, feats in enumerate(sample_feats_list):
+        if feats["n_strokes"] != perfect["n_strokes"]:
+            invalid.append(idx)
+            continue
+        valid_feats.append((idx, feats))
+        for dim in DIMENSIONS:
+            sample_ds[dim].append(feature_distance(feats, perfect, dim))
+
+    # 校准：刻度取 锚点值 与 样本分位数 的较大者（防止刻度过严）
+    d_fair = dict(d_fair_anchor)
+    d_worst = dict(d_worst_anchor)
+    if enable_cal:
+        for dim in DIMENSIONS:
+            ds = sample_ds[dim]
+            if not ds:
+                continue
+            d_fair[dim] = max(d_fair[dim], float(np.percentile(ds, fair_pct * 100)))
+            d_worst[dim] = max(d_worst[dim], float(np.percentile(ds, worst_pct * 100)))
+
+    # 第二遍：映射分数
+    scores_list: list[dict | None] = [None] * len(sample_feats_list)
+    for idx, feats in valid_feats:
+        scores: dict[str, float] = {}
+        for dim in DIMENSIONS:
+            max_score = float(dims_cfg[dim]["max"])
+            d_sample = feature_distance(feats, perfect, dim)
+            scores[dim] = map_dimension(
+                d_sample,
+                d_fair[dim],
+                d_worst[dim],
+                max_score,
+                ratios["fair"],
+                ratios["worst"],
+                step=step,
+                min_score=min_score,
+            )
+        scores_list[idx] = scores
+    return scores_list, invalid

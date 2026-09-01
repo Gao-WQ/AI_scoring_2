@@ -26,6 +26,11 @@
     "min_score": 1,
     "invalid_zero": true
   },
+  "calibration": {
+    "enabled": true,
+    "fair_percentile": 0.5,
+    "worst_percentile": 0.9
+  },
   "batch": {
     "output_suffix": "_all_data_new_已评分.xlsx",
     "score_prefix": "scores_",

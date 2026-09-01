@@ -27,7 +27,7 @@ from common.image_utils import load_image, resize_keep_ratio
 from common.io_utils import ensure_dir, save_json
 from config import load_config, resolve_path
 from features.features import extract_features
-from scoring.score_mapper import map_scores
+from scoring.score_mapper import map_scores_batch
 
 STANDARD_SIZE = 256
 ANCHOR_KEYS = ("perfect", "fair", "worst")
@@ -72,12 +72,24 @@ def run_char(char: str, cfg: dict, args) -> dict:
     rows = sorted(images)
 
     records: dict[int, dict] = {}
-    anomalies: list[dict] = []
+    feats_list: list[dict] = []
     for row in rows:
-        feats = extract_features(resize_keep_ratio(images[row][3], STANDARD_SIZE), n_colors=args.n_colors)
-        scores = map_scores(feats, anchor_feats, dims_cfg, ratios=ratios, step=step, min_score=min_score)
+        feats_list.append(extract_features(resize_keep_ratio(images[row][3], STANDARD_SIZE), n_colors=args.n_colors))
+
+    scores_list, _ = map_scores_batch(
+        feats_list,
+        anchor_feats,
+        dims_cfg,
+        ratios=ratios,
+        step=step,
+        min_score=min_score,
+        calibration=cfg.get("calibration"),
+    )
+    anomalies: list[dict] = []
+    for idx, scores in enumerate(scores_list):
+        row = rows[idx]
         if scores is None:
-            anomalies.append({"row": row, "reason": f"笔画数={feats['n_strokes']}（锚点={anchor_feats['perfect']['n_strokes']}）"})
+            anomalies.append({"row": row, "reason": f"笔画数={feats_list[idx]['n_strokes']}（锚点={anchor_feats['perfect']['n_strokes']}）"})
             continue
         records[row] = {"row": row, **{dim: round(scores[dim], 2) for dim in dims_cfg}}
 

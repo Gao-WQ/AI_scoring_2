@@ -112,20 +112,21 @@ def _block_entropy(glyph: np.ndarray, blocks: int = 8) -> float:
     return float(-(p * np.log(p)).sum())
 
 
-def cross_color_gap(strokes_feat: dict) -> float:
-    """异色笔画最近端点间距（该接未接的缺口）。仅一对笔画时返回 0。"""
-    min_gap = 1e9
-    n = len(strokes_feat["per_stroke"])
-    for i in range(n):
-        for j in range(i + 1, n):
-            ep_i = strokes_feat["per_stroke"][i]["endpoints"]
-            ep_j = strokes_feat["per_stroke"][j]["endpoints"]
-            for py, px in ep_i:
-                for qy, qx in ep_j:
-                    gap = math.hypot(py - qy, px - qx)
-                    if gap < min_gap:
-                        min_gap = gap
-    return 0.0 if min_gap == 1e9 else float(min_gap)
+def stroke_topology(feats: dict) -> dict:
+    """笔画衔接拓扑量：总端点数、总交叉点数、悬空率。
+
+    dangling_ratio = 端点数 / (端点数 + 2×交叉点数)，0=全部相接/闭合，1=全部悬空。
+    相比单对端点距离更稳健：整图统计，不依赖“哪对端点该接”的配对先验。
+    """
+    endpoint_count = int(sum(len(s["endpoints"]) for s in feats["per_stroke"]))
+    intersection_count = int(sum(len(s["intersections"]) for s in feats["per_stroke"]))
+    denominator = endpoint_count + 2 * intersection_count
+    dangling_ratio = endpoint_count / denominator if denominator > 0 else 1.0
+    return {
+        "endpoint_count": endpoint_count,
+        "intersection_count": intersection_count,
+        "dangling_ratio": dangling_ratio,
+    }
 
 
 def feature_distance(a: dict, b: dict, dim: str) -> float:
@@ -161,8 +162,11 @@ def feature_distance(a: dict, b: dict, dim: str) -> float:
         return abs(a["layout"]["bbox_area_ratio"] - b["layout"]["bbox_area_ratio"]) + 0.5 * abs(
             a["layout"]["aspect_dev"] - b["layout"]["aspect_dev"]
         )
-    if dim == "H":  # 笔画衔接位置：异色笔画缺口
-        return abs(cross_color_gap(a) - cross_color_gap(b))
+    if dim == "H":  # 笔画衔接位置：拓扑量（端点数/悬空率）
+        ta, tb = stroke_topology(a), stroke_topology(b)
+        d_endpoint = abs(ta["endpoint_count"] - tb["endpoint_count"]) / max(ta["endpoint_count"], tb["endpoint_count"], 1)
+        d_dangling = abs(ta["dangling_ratio"] - tb["dangling_ratio"])
+        return 0.5 * d_endpoint + 0.5 * d_dangling
     if dim == "I":  # 留白空间：密度熵 + 字内空白
         return abs(a["layout"]["density_entropy"] - b["layout"]["density_entropy"]) + 0.5 * abs(
             a["layout"]["void_ratio"] - b["layout"]["void_ratio"]
