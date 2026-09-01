@@ -31,14 +31,14 @@ def create_anchor_template(anchor_dir: str | Path, char: str, score_ratio: dict[
     """创建锚点目录模板：目录 + 三张占位说明 txt + 默认 anchor.json。"""
     target = Path(anchor_dir) / char
     ensure_dir(target)
-    for key in ANCHOR_KEYS:
-        placeholder = target / f"{key}.png.请替换为{char}字的{key}分割图.txt"
-        placeholder.write_text(
-            f"请把 {char} 字的「{key}」分割图命名为 {key}.png 放入本目录。\n"
-            "要求：PNG、RGB、无背景、每笔一色。\n"
-            "放置完成后删除本说明文件。",
-            encoding="utf-8",
-        )
+    # for key in ANCHOR_KEYS:
+    #     placeholder = target / f"{key}.png.请替换为{char}字的{key}分割图.txt"
+    #     placeholder.write_text(
+    #         f"请把 {char} 字的「{key}」分割图命名为 {key}.png 放入本目录。\n"
+    #         "要求：PNG、RGB、无背景、每笔一色。\n"
+    #         "放置完成后删除本说明文件。",
+    #         encoding="utf-8",
+    #     )
     config_path = target / "anchor.json"
     if not config_path.exists():
         config_path.write_text(

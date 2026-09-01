@@ -92,7 +92,7 @@ def _anchor_features(anchors_dir: Path, char: str) -> dict[str, dict]:
 def run_char(char: str, cfg: dict, args) -> dict:
     """处理单个字，返回统计结果 dict。缺锚点/源缺失时返回带 status 的结果。"""
     anchors_dir = resolve_path(cfg, "anchors_dir")
-    source_dir = resolve_path(cfg, "source_dir")
+    source_dir = args.source_dir or resolve_path(cfg, "source_dir")
     scores_dir = resolve_path(cfg, "scores_dir")
     output_dir = resolve_path(cfg, "output_dir")
     ensure_dir(scores_dir)
