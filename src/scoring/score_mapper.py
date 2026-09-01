@@ -104,7 +104,8 @@ def map_scores_batch(
     step: float = 0.5,
     min_score: float = 1.0,
     calibration: dict | None = None,
-) -> tuple[list[dict | None], list[int]]:
+    return_details: bool = False,
+) -> tuple[list[dict | None], list[int], dict | None]:
     """批量映射：样本特征列表 → 六维分列表。
 
     calibration（可选，默认 None=关闭）：
@@ -112,7 +113,9 @@ def map_scores_batch(
       当锚点刻度过严（样本偏差普遍超过最差锚点）时，把 fair/worst 刻度放宽到
       样本偏差分布的 50/90 分位（取锚点值与分位值的较大者），保证分数分布不被压死。
       锚点仍决定“完美=满分”的位置，校准只放宽中低段刻度。
-    返回 (分数列表[无效样本为 None], 无效样本索引列表)。
+    return_details=True 时返回 (分数列表, 无效索引, details)，details 含：
+      每样本偏差 d（vs 满分锚点）与分数；锚点原始刻度与校准后刻度。
+    返回 (分数列表[无效样本为 None], 无效样本索引列表[, details])。
     """
     ratios = ratios or DEFAULT_RATIOS
     cal = calibration or {}
@@ -149,13 +152,15 @@ def map_scores_batch(
 
     # 第二遍：映射分数
     scores_list: list[dict | None] = [None] * len(sample_feats_list)
+    sample_details: list[dict] = []
     for idx, feats in valid_feats:
         scores: dict[str, float] = {}
+        d_sample: dict[str, float] = {}
         for dim in DIMENSIONS:
             max_score = float(dims_cfg[dim]["max"])
-            d_sample = feature_distance(feats, perfect, dim)
+            d_sample[dim] = feature_distance(feats, perfect, dim)
             scores[dim] = map_dimension(
-                d_sample,
+                d_sample[dim],
                 d_fair[dim],
                 d_worst[dim],
                 max_score,
@@ -165,4 +170,14 @@ def map_scores_batch(
                 min_score=min_score,
             )
         scores_list[idx] = scores
+        if return_details:
+            sample_details.append({"idx": idx, "d": d_sample, "scores": scores, "feats": feats})
+    if return_details:
+        details = {
+            "calibration": cal,
+            "anchor_scale": {"fair": d_fair_anchor, "worst": d_worst_anchor},
+            "calibrated_scale": {"fair": d_fair, "worst": d_worst},
+            "samples": sample_details,
+        }
+        return scores_list, invalid, details
     return scores_list, invalid

@@ -29,8 +29,55 @@ from config import load_config, resolve_path
 from features.features import extract_features
 from scoring.score_mapper import map_scores_batch
 
+import numpy as np
+
 STANDARD_SIZE = 256
 ANCHOR_KEYS = ("perfect", "fair", "worst")
+
+FEATURE_HEADERS = [
+    "char_id", "笔画数",
+    "中心偏移", "边距不对称", "占格面积比", "宽高比偏差", "密度熵", "字内空白比",
+    "四宫格-左上", "四宫格-右上", "四宫格-左下", "四宫格-右下",
+    "笔画长度均值", "笔画宽度均值", "笔画曲率均值",
+    "偏差-笔画", "偏差-结构", "偏差-位置", "偏差-占格", "偏差-衔接", "偏差-留白",
+    "笔画规范分", "结构规范分", "位置规范分", "占格大小分", "笔画衔接分", "留白空间分",
+    "总分",
+]
+
+
+def add_feature_sheet(ws2, details: dict, rows: list[int]) -> None:
+    """在输出工作簿新增"ai特征值"sheet：中文列名、第一列 char_id、无图片、按样本顺序一行一条。
+
+    内容 = 特征（layout + 笔画统计）+ 每维偏差 d + 六维分，即评分全过程中间值。
+    """
+    wb = ws2.parent
+    if "ai特征值" in wb.sheetnames:
+        del wb["ai特征值"]
+    sheet = wb.create_sheet("ai特征值")
+    sheet.append(FEATURE_HEADERS)
+    for sample in details["samples"]:
+        row = rows[sample["idx"]]
+        feats = sample["feats"]
+        layout = feats["layout"]
+        per = feats["per_stroke"]
+        quad = layout["quad"]
+        n = len(per)
+        sheet.append(
+            [
+                ws2.cell(row, 1).value,  # char_id（源工作簿 A 列）
+                feats["n_strokes"],
+                round(layout["center_offset"], 4), round(layout["margin_asym"], 4),
+                round(layout["bbox_area_ratio"], 4), round(layout["aspect_dev"], 4),
+                round(layout["density_entropy"], 4), round(layout["void_ratio"], 4),
+                round(quad[0], 4), round(quad[1], 4), round(quad[2], 4), round(quad[3], 4),
+                round(np.mean([s["length"] for s in per]), 2) if n else 0,
+                round(np.mean([s["width_mean"] for s in per]), 4) if n else 0,
+                round(np.mean([s["curvature_proxy"] for s in per]), 4) if n else 0,
+                *[round(sample["d"][dim], 4) for dim in ("D", "E", "F", "G", "H", "I")],
+                *[round(sample["scores"][dim], 2) for dim in ("D", "E", "F", "G", "H", "I")],
+                round(sum(sample["scores"][dim] for dim in ("D", "E", "F", "G", "H", "I")), 2),
+            ]
+        )
 
 
 def _anchor_features(anchors_dir: Path, char: str) -> dict[str, dict]:
@@ -76,7 +123,7 @@ def run_char(char: str, cfg: dict, args) -> dict:
     for row in rows:
         feats_list.append(extract_features(resize_keep_ratio(images[row][3], STANDARD_SIZE), n_colors=args.n_colors))
 
-    scores_list, _ = map_scores_batch(
+    scores_list, _, details = map_scores_batch(
         feats_list,
         anchor_feats,
         dims_cfg,
@@ -84,6 +131,7 @@ def run_char(char: str, cfg: dict, args) -> dict:
         step=step,
         min_score=min_score,
         calibration=cfg.get("calibration"),
+        return_details=getattr(args, "save_features", False),
     )
     anomalies: list[dict] = []
     for idx, scores in enumerate(scores_list):
@@ -97,13 +145,15 @@ def run_char(char: str, cfg: dict, args) -> dict:
     scores_path = scores_dir / f"{char}_scores.json"
     save_json(scores_path, list(records.values()))
 
-    # 写回 Excel
+    # 写回 Excel（可选：新增 ai特征值 sheet）
     wb2 = load_workbook(workbook, data_only=False)
     ws2 = first_sheet(wb2)
     expected_images = len(ws2._images)
     formulas_before = formulas_snapshot(ws2)
     write_scores(ws2, records)
     verify_workbook(ws2, records, formulas_before, expected_images, maxes={k: v["max"] for k, v in dims_cfg.items()}, step=step)
+    if details is not None:
+        add_feature_sheet(ws2, details, rows)
     set_full_recalc(wb2)
     output_path = output_dir / f"{char}{cfg['batch']['output_suffix']}"
     wb2.save(output_path)

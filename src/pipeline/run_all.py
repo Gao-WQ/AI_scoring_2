@@ -20,6 +20,7 @@ def get_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--char", type=str, default=None, help="只处理单字（默认处理清单全部）")
     parser.add_argument("--chars-file", type=Path, default=None, help="字符清单文件（默认自动扫描源目录）")
     parser.add_argument("--n-colors", type=int, default=8, help="颜色量化聚类数（默认 8）")
+    parser.add_argument("--save-features", action="store_true", default=False, help="保存评分中间值（特征+偏差+刻度）到 data/features/{char}_score_details.json")
     parser.add_argument("--source-dir", type=Path, default=None, help="源工作簿目录（默认取 config）")
     parser.add_argument("--anchors-dir", type=Path, default=None, help="锚点根目录（默认取 config）")
     parser.add_argument("--config", type=Path, default=None, help="config.json 路径（默认 src/config.json）")
