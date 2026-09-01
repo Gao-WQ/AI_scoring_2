@@ -1,0 +1,34 @@
+{
+  "paths": {
+    "source_dir": "D:/wqgao/工作文档/部门文件/ori_data/分割图/new",
+    "project_root": "D:/wqgao/code/AI_scoring_2",
+    "anchors_dir": "data/anchors",
+    "features_dir": "data/features",
+    "scores_dir": "data/scores",
+    "output_dir": "data/output",
+    "logs_dir": "logs",
+    "chars_file": "data/chars.txt"
+  },
+  "dimensions": {
+    "D": { "max": 15, "label": "笔画规范" },
+    "E": { "max": 20, "label": "结构规范" },
+    "F": { "max": 15, "label": "位置规范" },
+    "G": { "max": 10, "label": "占格大小" },
+    "H": { "max": 10, "label": "笔画衔接位置" },
+    "I": { "max": 10, "label": "留白空间" }
+  },
+  "anchor_defaults": {
+    "score_ratio": { "perfect": 1.0, "fair": 0.425, "worst": 0.125 },
+    "anchor_files": ["perfect.png", "fair.png", "worst.png"]
+  },
+  "scoring": {
+    "step": 0.5,
+    "min_score": 1,
+    "invalid_zero": true
+  },
+  "batch": {
+    "output_suffix": "_all_data_new_已评分.xlsx",
+    "score_prefix": "scores_",
+    "feature_prefix": "features_"
+  }
+}
