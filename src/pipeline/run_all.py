@@ -39,19 +39,19 @@ def run(args: argparse.Namespace) -> None:
     print(f"待处理字（{len(chars)} 个）: {chars}")
 
     results = [run_char(char, cfg, args) for char in chars]
-    summary_path = output_dir / "summary.csv"
-    with open(summary_path, "w", newline="", encoding="utf-8-sig") as f:
-        writer = csv.writer(f)
-        writer.writerow(["char", "status", "total", "scored", "anomaly_count", "total_min", "total_max", "total_mean", "problems"])
-        for r in results:
-            writer.writerow(
-                [
-                    r["char"], r["status"], r.get("total", 0), r.get("scored", 0),
-                    r.get("anomaly_count", 0), r.get("total_min", 0), r.get("total_max", 0),
-                    r.get("total_mean", 0.0), "; ".join(r.get("problems", [])),
-                ]
-            )
-    print(f"\n汇总已保存: {summary_path}\n")
+    # summary_path = output_dir / "summary.csv"
+    # with open(summary_path, "w", newline="", encoding="utf-8-sig") as f:
+    #     writer = csv.writer(f)
+    #     writer.writerow(["char", "status", "total", "scored", "anomaly_count", "total_min", "total_max", "total_mean", "problems"])
+    #     for r in results:
+    #         writer.writerow(
+    #             [
+    #                 r["char"], r["status"], r.get("total", 0), r.get("scored", 0),
+    #                 r.get("anomaly_count", 0), r.get("total_min", 0), r.get("total_max", 0),
+    #                 r.get("total_mean", 0.0), "; ".join(r.get("problems", [])),
+    #             ]
+    #         )
+    # print(f"\n汇总已保存: {summary_path}\n")
 
     for r in results:
         if r["status"] == "ok":

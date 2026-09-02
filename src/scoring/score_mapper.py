@@ -180,4 +180,4 @@ def map_scores_batch(
             "samples": sample_details,
         }
         return scores_list, invalid, details
-    return scores_list, invalid
+    return scores_list, invalid, None
