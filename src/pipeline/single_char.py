@@ -2,9 +2,9 @@
 """单字处理流水线：锚点加载 → 样本特征 → 锚点刻度插值 → scores json → 写回 Excel。
 
 流程（对单个字）：
-  1. 校验并加载锚点（data/anchors/{char}/），三张锚点图提取特征
+  1. 校验并加载锚点（data/anchors/{char}/），按 anchor.json 条目提取全部锚点特征
   2. 读源工作簿（{source_dir}/{char}{input_suffix}.xlsx），提取 C 列分割图
-  3. 逐样本提取特征并做三锚点插值映射，得到六维分
+  3. 逐样本提取特征并做 N 锚点分段插值映射，得到六维分
   4. 保存 scores json（data/scores/{char}_scores.json）
   5. 写回 Excel（D:I + L 清空 + 公式保留 + 校验）到 data/output/{char}{input_suffix}{output_suffix}.xlsx
   6. 返回统计结果（含笔画数异常名单）
@@ -32,7 +32,6 @@ from scoring.score_mapper import map_scores_batch
 import numpy as np
 
 STANDARD_SIZE = 256
-ANCHOR_KEYS = ("perfect", "fair", "worst")
 
 FEATURE_HEADERS = [
     "char_id", "笔画数",
@@ -80,13 +79,24 @@ def add_feature_sheet(ws2, details: dict, rows: list[int]) -> None:
         )
 
 
-def _anchor_features(anchors_dir: Path, char: str) -> dict[str, dict]:
-    """加载三张锚点图并提取特征，返回 {perfect/fair/worst: feats}。"""
-    feats: dict[str, dict] = {}
-    for key in ANCHOR_KEYS:
-        img = load_image(anchors_dir / char / f"{key}.png")
-        feats[key] = extract_features(resize_keep_ratio(img, STANDARD_SIZE))
-    return feats
+def _anchor_features(anchors_dir: Path, char: str) -> dict:
+    """按 anchor.json 条目加载全部锚点图并提取特征。
+
+    返回 {"anchors": [{"file", "score_ratio", "label", "feats"}, ...]}，第 0 个为满分锚点。
+    """
+    anchor_cfg = load_anchor_config(anchors_dir, char)
+    anchors = []
+    for item in anchor_cfg["anchors"]:
+        img = load_image(anchors_dir / char / item["file"])
+        anchors.append(
+            {
+                "file": item["file"],
+                "score_ratio": item["score_ratio"],
+                "label": item.get("label", ""),
+                "feats": extract_features(resize_keep_ratio(img, STANDARD_SIZE)),
+            }
+        )
+    return {"anchors": anchors}
 
 
 def run_char(char: str, cfg: dict, args) -> dict:
@@ -107,10 +117,8 @@ def run_char(char: str, cfg: dict, args) -> dict:
     if not workbook.exists():
         return {"char": char, "status": "no_source", "problems": [f"源工作簿不存在: {workbook}"]}
 
-    anchor_cfg = load_anchor_config(anchors_dir, char)
     anchor_feats = _anchor_features(anchors_dir, char)
     dims_cfg = cfg["dimensions"]
-    ratios = {key: anchor_cfg["anchors"][key]["score_ratio"] for key in ANCHOR_KEYS}
     step = cfg["scoring"]["step"]
     min_score = cfg["scoring"]["min_score"]
 
@@ -134,7 +142,6 @@ def run_char(char: str, cfg: dict, args) -> dict:
         feats_list,
         anchor_feats,
         dims_cfg,
-        ratios=ratios,
         step=step,
         min_score=min_score,
         calibration=cfg.get("calibration"),

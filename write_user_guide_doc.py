@@ -127,7 +127,7 @@ table(
     [
         ["src/main.py", "CLI 统一入口，分发 5 个子命令", "✅"],
         ["src/config.py", "读取 config.json、解析绝对路径", "—"],
-        ["src/init_anchor.py", "生成锚点目录模板（三张占位 + anchor.json）", "init-anchor"],
+        ["src/init_anchor.py", "生成锚点目录模板（N 档占位 + anchor.json，--count 3/6/9）", "init-anchor"],
         ["src/apply_scores.py", "从已有 scores json 写回 Excel（独立入口）", "apply-scores"],
         ["src/common/io_utils.py", "目录创建、JSON 安全读写、源工作簿路径拼接（input_suffix）、字符清单、进度条", "—"],
         ["src/common/image_utils.py", "图像加载、颜色 KMeans 量化、逐笔分离、骨架化、端点/交叉点", "—"],
@@ -150,14 +150,17 @@ heading("五、命令手册", 1)
 para("所有命令统一格式：python main.py <子命令> [参数]（在 src 目录下执行）。", bold=True)
 
 heading("5.1 生成锚点模板 init-anchor", 2)
-code("python main.py init-anchor --char 刀")
+code("python main.py init-anchor --char 刀           # 3 档（默认）")
+code("python main.py init-anchor --char 刀 --count 6 # 6 档")
 table(
     ["参数", "默认", "说明"],
     [
         ["--char", "刀", "字名（目录名）"],
+        ["--count", "取 config", "锚点档位数 3/6/9"],
         ["--anchor-dir", "取 config", "锚点根目录"],
     ],
 )
+para("产出 data\\anchors\\{字}\\ + anchor.json（按档位表生成 N 条锚点）。按 anchor.json 的 file 字段放图（3 档 = perfect/fair/worst.png；6/9 档 = perfect/level_1~N-2/worst.png），score_ratio 与 label 已自动填好，可改。")
 
 heading("5.2 笔画分离验证 stroke-check", 2)
 code("python main.py stroke-check --char 刀 --expected-strokes 2")
@@ -215,8 +218,8 @@ para(
 
 # ============ 七、新字流程 ============
 heading("七、新字评分完整流程", 1)
-code("python main.py init-anchor --char 新字")
-para("→ 放入三张分割图（perfect/fair/worst.png），删占位文件，按需改 anchor.json")
+code("python main.py init-anchor --char 新字            # 3 档；也可 --count 6/9")
+para("→ 按 anchor.json 的 file 字段放 N 张分割图（由好到差），按需改 score_ratio")
 code("python main.py stroke-check --char 新字 --expected-strokes N")
 code("python main.py run-all --char 新字 --save-features")
 para("→ 检查 data\\output\\ 成品 + summary.csv")

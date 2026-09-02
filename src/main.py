@@ -19,6 +19,7 @@ def get_args() -> argparse.Namespace:
 
     p_init = sub.add_parser("init-anchor", help="生成锚点目录模板")
     p_init.add_argument("--char", type=str, default="刀", help="字名（默认 刀）")
+    p_init.add_argument("--count", type=int, default=None, help="锚点档位数 3/6/9（默认取 config）")
     p_init.add_argument("--anchor-dir", type=Path, default=None, help="锚点根目录（默认取 config）")
 
     p_stroke = sub.add_parser("stroke-check", help="笔画分离质量验证（颜色数 vs 实际笔画数）")

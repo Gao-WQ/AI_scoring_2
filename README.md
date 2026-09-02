@@ -98,15 +98,18 @@ AI_scoring_2\
 ### 1. 生成锚点模板 `init-anchor`
 
 ```bash
-python main.py init-anchor --char 刀
+python main.py init-anchor --char 刀           # 3 档（默认）
+python main.py init-anchor --char 刀 --count 6 # 6 档
+python main.py init-anchor --char 刀 --count 9 # 9 档
 ```
 
 | 参数 | 默认 | 说明 |
 |---|---|---|
 | `--char` | 刀 | 字名（目录名） |
+| `--count` | 取 config | 锚点档位数 3/6/9 |
 | `--anchor-dir` | 取 config | 锚点根目录 |
 
-产出 `data\anchors\{字}\`：三张占位说明 + `anchor.json`。放置三张分割图后删除占位文件。
+产出 `data\anchors\{字}\` + `anchor.json`（按档位表生成 N 条锚点）。按 anchor.json 的 `file` 字段放图（3 档 = perfect/fair/worst.png；6/9 档 = perfect/level_1~N-2/worst.png），`score_ratio` 与 `label` 已自动填好，可改。
 
 ### 2. 笔画分离验证 `stroke-check`
 
@@ -188,10 +191,10 @@ python main.py apply-scores --char 上
 ## 七、新字评分完整流程
 
 ```bash
-# 1. 生成锚点模板
+# 1. 生成锚点模板（默认 3 档；也可 --count 6/9）
 python main.py init-anchor --char 新字
 
-# 2. 放入三张分割图（perfect/fair/worst.png），删占位文件，按需改 anchor.json
+# 2. 按 anchor.json 的 file 字段放 N 张分割图（由好到差），按需改 score_ratio
 # 3. 验证笔画分离
 python main.py stroke-check --char 新字 --expected-strokes N
 

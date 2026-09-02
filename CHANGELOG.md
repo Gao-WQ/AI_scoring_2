@@ -1,8 +1,37 @@
 # 版本更新记录（CHANGELOG）
 
-本项目为手写汉字六维预打分系统（AI_scoring_2），基于分割图几何特征（逐笔颜色比对）+ 三锚点刻度插值。
+本项目为手写汉字六维预打分系统（AI_scoring_2），基于分割图几何特征（逐笔颜色比对）+ 多锚点分段插值。
 
 版本提交约定：**所有 git 提交/推送需经确认后执行**，本文件随版本更新同步维护。
+
+---
+
+## v4（commit 待本次提交）— 多锚点档位可配置（3/6/9）+ 校准标签定位修复
+
+- 日期：2026-09-02
+- 类型：评分核心扩展（锚点刻度细化）+ 校准修复
+
+### 改动内容
+
+| 模块 | 改动 |
+|---|---|
+| `src/scoring/score_mapper.py` | `map_dimension` 两段插值 → **N 段分段线性插值**（有序 [(d, ratio)] 列表）；`_anchor_entries` 每维锚点条目、`_build_interp_points` 去重构建插值点（偏差不劣于前档的锚点自动合并）；删除无调用方 `map_scores` |
+| `src/common/anchor_utils.py` | anchor.json 改**有序列表结构**（version 2），**兼容旧三键 dict**（自动转换）；`default_anchor_config` 按 `anchor_count` + `score_levels` 生成；3/6/9 档位表 `DEFAULT_LEVELS`；文件名规则 perfect/level_i/worst |
+| `src/config.json` | `anchor_defaults` 新增 `anchor_count: 3` + `score_levels`（3/6/9 档） |
+| `src/pipeline/single_char.py` | 删除硬编码 `ANCHOR_KEYS` 三键，按 anchor.json 条目加载 N 张锚点图 |
+| `src/init_anchor.py` / `src/main.py` | `init-anchor` 新增 `--count 3/6/9` |
+| 校准修复 | 校准改为**去重前按标签定位** fair/worst（`_calibrate_entries`），修复 fair 锚点偏差为 0 被合并时索引错位、worst 校准失效的 bug |
+
+### 档位表（config.json → anchor_defaults.score_levels）
+
+3 档 [1.0, 0.425, 0.125]；6 档 [1.0, 0.75, 0.55, 0.425, 0.25, 0.125]；9 档 [1.0, 0.85, 0.7, 0.55, 0.425, 0.3, 0.2, 0.125, 0.05]
+
+### 验证结果（刀字，100 样本）
+
+- 3 锚点新旧逻辑 1000 随机点完全一致（0 差异）
+- 校准 A/B：关闭 36.44 → 默认(0.5/0.9) 39.75 → worst=0.99 时 p10 25.4→27.5（各参数调整均有响应，索引 bug 已修复）
+- 旧 dict 格式 anchor.json 自动兼容转换；6/9 档模板生成正确（fair 自动标 0.425 档）；ai特征值 sheet 兼容（100 行 × 28 列）
+- 端到端：run-all 刀字均值 38.84，0 异常
 
 ---
 
@@ -129,3 +158,5 @@
 | `6282a72` | v3 评分中间值写入 xlsx"ai特征值"sheet |
 | `53ce5fb` | 文档：README/使用说明/方案v4 + 细节调整 |
 | `8ac290e` | v3.1 输入输出后缀可配置 + 运行时打印与进度条 |
+| `343a0c4` | fix: map_scores_batch 固定返回 3 元组；run_all 汇总输出调整 |
+| （本次） | v4 多锚点档位可配置（3/6/9）+ 校准标签定位修复 |
