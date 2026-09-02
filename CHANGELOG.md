@@ -6,7 +6,7 @@
 
 ---
 
-## v5（commit `ecbf952`）— 锚点档位 3/5/9 + 数字图池 1~9.png + anchor{count}.json 分档并存
+## v5（commit `42ef7e1`）— 锚点档位 3/5/9 + 数字图池 1~9.png + anchor{count}.json 分档并存
 
 - 日期：2026-09-02
 - 类型：锚点组织重构（不兼容旧版 anchor.json / perfect·level_* 命名）
