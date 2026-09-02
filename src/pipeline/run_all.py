@@ -33,7 +33,7 @@ def run(args: argparse.Namespace) -> None:
     output_dir = resolve_path(cfg, "output_dir")
     ensure_dir(output_dir)
 
-    chars = resolve_char_list(source_dir, args.chars_file)
+    chars = resolve_char_list(source_dir, args.chars_file, cfg["paths"].get("input_suffix", "_all_data_new"))
     if args.char:
         chars = [args.char]
     print(f"待处理字（{len(chars)} 个）: {chars}")

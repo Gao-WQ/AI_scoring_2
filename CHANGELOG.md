@@ -6,6 +6,34 @@
 
 ---
 
+## v3.1（commit 待本次提交）— 输入输出后缀可配置 + 运行时打印与进度条
+
+- 日期：2026-09-02
+- 类型：配置可定制化 + 运行时体验 + 文档体系完善
+
+### 改动内容
+
+| 模块 | 改动 |
+|---|---|
+| `src/config.json` | `paths` 新增 `input_suffix`（源文件后缀，如 `_all_data_new` / `-打分表-1`）；`batch.output_suffix` 简化为 `_已评分`（`.xlsx` 固定拼接） |
+| `src/common/io_utils.py` | 新增 `source_workbook_path`（`{char}{input_suffix}.xlsx`）、`output_workbook_path`（`{char}{input_suffix}{output_suffix}.xlsx`）、`progress_bar`（终端进度条）；`list_source_workbooks` 支持自定义后缀 |
+| `src/config.py` | `resolve_all_paths` 跳过非路径键 `input_suffix` |
+| 各入口（single_char/run_all/stroke_check/feature_check/apply_scores） | 读取改用 `{char}{input_suffix}.xlsx`，保存改用 `{char}{input_suffix}{output_suffix}.xlsx` |
+| `src/pipeline/single_char.py` | 运行时打印当前字信息（待打分样本量、打分表保存路径）；特征提取阶段终端进度条（样本 >50 时显示） |
+| 文档 | `README.md` / `使用说明.docx` 同步更新（换数据源配置、路径拼接、进度条） |
+
+### 用法变化
+
+- 换数据源：改 `config.json` 的 `source_dir`（目录）+ `paths.input_suffix`（后缀），源文件名 = `{字}{input_suffix}.xlsx`，代码不用改
+- 成品路径：`data/output/{字}{input_suffix}{output_suffix}.xlsx`
+
+### 验证结果
+
+- 单元验证：新后缀 `-打分表-1` 字名提取（你/八/刀/坝）、源/输出路径拼接正确；旧后缀 `_all_data_new` 回归正常
+- `stroke-check --char 刀`（新配置 source_dir=try_tmp_data + input_suffix=-打分表-1）5/5 通过
+
+---
+
 ## v3（commit `6282a72`）— 评分中间值写入 xlsx"ai特征值"sheet
 
 - 日期：2026-09-01
@@ -99,3 +127,5 @@
 | `92d05ae` | v1 基线：Phase 0-3 全链路跑通 |
 | `41b9746` | v2 评分改进：H 拓扑量 + 分布校准 |
 | `6282a72` | v3 评分中间值写入 xlsx"ai特征值"sheet |
+| `53ce5fb` | 文档：README/使用说明/方案v4 + 细节调整 |
+| （本次） | v3.1 输入输出后缀可配置 + 运行时打印与进度条 |

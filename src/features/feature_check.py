@@ -12,7 +12,7 @@ from pathlib import Path
 import numpy as np
 
 from common.excel_utils import first_sheet, load_workbook, extract_images_by_row
-from common.io_utils import ensure_dir
+from common.io_utils import ensure_dir, source_workbook_path
 from config import load_config, resolve_path
 from features.features import extract_features
 
@@ -34,7 +34,7 @@ def run(args: argparse.Namespace) -> None:
     features_dir = args.features_dir or resolve_path(cfg, "features_dir")
     ensure_dir(features_dir)
 
-    workbook = source_dir / f"{args.char}_all_data_new.xlsx"
+    workbook = source_workbook_path(source_dir, args.char, cfg["paths"].get("input_suffix", "_all_data_new"))
     if not workbook.exists():
         raise SystemExit(f"源工作簿不存在: {workbook}")
 

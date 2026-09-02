@@ -27,6 +27,7 @@ def resolve_path(cfg: dict, key: str) -> Path:
 
 
 def resolve_all_paths(cfg: dict | None = None) -> dict[str, Path]:
-    """解析全部路径为绝对路径，供各模块一次性获取。"""
+    """解析全部路径为绝对路径，供各模块一次性获取（跳过非路径键如 input_suffix）。"""
     cfg = cfg or load_config()
-    return {key: resolve_path(cfg, key) for key in cfg["paths"]}
+    skip = {"input_suffix"}
+    return {key: resolve_path(cfg, key) for key in cfg["paths"] if key not in skip}

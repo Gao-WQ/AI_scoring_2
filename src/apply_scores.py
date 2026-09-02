@@ -18,7 +18,7 @@ from common.excel_utils import (
     verify_workbook,
     write_scores,
 )
-from common.io_utils import ensure_dir
+from common.io_utils import ensure_dir, output_workbook_path, source_workbook_path
 from config import load_config, resolve_path
 
 
@@ -33,14 +33,15 @@ def get_args(argv: list[str] | None = None) -> argparse.Namespace:
 
 
 def write_back(char: str, cfg: dict, scores_path: Path) -> dict:
-    """把 scores json 写回 {char}_all_data_new.xlsx，另存为已评分版本。"""
+    """把 scores json 写回源工作簿（{char}{input_suffix}.xlsx），另存为已评分版本。"""
     source_dir = resolve_path(cfg, "source_dir")
     output_dir = resolve_path(cfg, "output_dir")
     ensure_dir(output_dir)
     dims_cfg = cfg["dimensions"]
     step = cfg["scoring"]["step"]
 
-    workbook = source_dir / f"{char}_all_data_new.xlsx"
+    input_suffix = cfg["paths"].get("input_suffix", "_all_data_new")
+    workbook = source_workbook_path(source_dir, char, input_suffix)
     if not workbook.exists():
         raise SystemExit(f"源工作簿不存在: {workbook}")
 
@@ -56,7 +57,7 @@ def write_back(char: str, cfg: dict, scores_path: Path) -> dict:
         maxes={k: v["max"] for k, v in dims_cfg.items()}, step=step,
     )
     set_full_recalc(wb)
-    output_path = output_dir / f"{char}{cfg['batch']['output_suffix']}"
+    output_path = output_workbook_path(output_dir, char, input_suffix, cfg["batch"]["output_suffix"])
     wb.save(output_path)
     return {
         "char": char,

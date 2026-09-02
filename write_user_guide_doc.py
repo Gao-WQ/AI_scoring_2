@@ -129,7 +129,7 @@ table(
         ["src/config.py", "读取 config.json、解析绝对路径", "—"],
         ["src/init_anchor.py", "生成锚点目录模板（三张占位 + anchor.json）", "init-anchor"],
         ["src/apply_scores.py", "从已有 scores json 写回 Excel（独立入口）", "apply-scores"],
-        ["src/common/io_utils.py", "目录创建、JSON 安全读写、字符清单、源工作簿扫描", "—"],
+        ["src/common/io_utils.py", "目录创建、JSON 安全读写、源工作簿路径拼接（input_suffix）、字符清单、进度条", "—"],
         ["src/common/image_utils.py", "图像加载、颜色 KMeans 量化、逐笔分离、骨架化、端点/交叉点", "—"],
         ["src/common/excel_utils.py", "工作簿加载、嵌入图提取、D:I 写入、公式快照与校验", "—"],
         ["src/common/anchor_utils.py", "锚点模板创建、anchor.json 解析、锚点目录校验", "—"],
@@ -190,7 +190,9 @@ table(
         ["--source-dir / --anchors-dir", "取 config", "源/锚点目录"],
     ],
 )
-para("产出：data\\scores\\{字}_scores.json、data\\output\\{字}_all_data_new_已评分.xlsx、summary.csv。缺锚点的字跳过不阻塞。")
+para("产出：data\\scores\\{字}_scores.json、data\\output\\{字}{input_suffix}{output_suffix}.xlsx、summary.csv。缺锚点的字跳过不阻塞。")
+para("换数据源：修改 config.json 的 source_dir（目录）与 paths.input_suffix（后缀，如 _all_data_new 或 -打分表-1），源文件名 = {字}{input_suffix}.xlsx，代码不用改。")
+para("运行时输出：每字打印 [处理] 字=X | 待打分样本量=N | 打分表保存: ...；样本量 >50 时特征提取阶段显示终端进度条。")
 
 heading("5.5 单独写回 apply-scores", 2)
 code("python main.py apply-scores --char 上")
@@ -198,11 +200,11 @@ para("从已有 scores json 写回 Excel（评分已算好但写回失败 / 老�
 
 # ============ 六、数据流 ============
 heading("六、数据流", 1)
-code("源 xlsx（C 列分割图）")
+code("源 xlsx（{字}{input_suffix}.xlsx，C 列分割图）")
 code("  → extract_features（六维特征，内存）")
 code("  → map_scores_batch（锚点偏差 + 分布校准 → 六维分）")
 code("  → data/scores/{字}_scores.json")
-code("  → 写回 data/output/{字}_all_data_new_已评分.xlsx")
+code("  → 写回 data/output/{字}{input_suffix}{output_suffix}.xlsx")
 code("      ├── 评分汇总 sheet（D:I 六维分 + J/K/M 公式，L 留空给老师）")
 code("      └──（--save-features 时）ai特征值 sheet")
 heading("ai特征值 sheet（28 列，中文）", 2)
@@ -226,6 +228,7 @@ table(
     ["问题", "处理"],
     [
         ["写回报 PermissionError", "输出 xlsx 正被 Excel/WPS 打开，关闭后重跑或 apply-scores 补写回"],
+        ["换数据源（文件名不同）", "改 config.json：source_dir（目录）+ paths.input_suffix（后缀，如 -打分表-1），源文件名 = {字}{input_suffix}.xlsx"],
         ["分数分布整体偏低/偏高", "检查 config.json 的 calibration.enabled（默认 true）；换更合理的锚点图"],
         ["某字被跳过", "缺锚点：data\\anchors\\{字}\\ 未放三张图；补齐后 run-all --char 字 单字重跑"],
         ["报告“笔画数异常”", "分割图缺笔/粘连，该样本标记复核，不参与评分"],

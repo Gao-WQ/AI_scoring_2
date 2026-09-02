@@ -1,7 +1,6 @@
 {
   "paths": {
-    "source_dir": "D:/wqgao/code/AI_scoring_2/data/try_tmp_data",
-    "input_suffix": "-打分表-1",
+    "source_dir": "D:/wqgao/工作文档/部门文件/ori_data/分割图/new",
     "project_root": "D:/wqgao/code/AI_scoring_2",
     "anchors_dir": "data/anchors",
     "features_dir": "data/features",
@@ -33,7 +32,7 @@
     "worst_percentile": 0.9
   },
   "batch": {
-    "output_suffix": "_已评分",
+    "output_suffix": "_all_data_new_已评分.xlsx",
     "score_prefix": "scores_",
     "feature_prefix": "features_"
   }

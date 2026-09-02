@@ -3,10 +3,10 @@
 
 流程（对单个字）：
   1. 校验并加载锚点（data/anchors/{char}/），三张锚点图提取特征
-  2. 读源工作簿（{source_dir}/{char}_all_data_new.xlsx），提取 C 列分割图
+  2. 读源工作簿（{source_dir}/{char}{input_suffix}.xlsx），提取 C 列分割图
   3. 逐样本提取特征并做三锚点插值映射，得到六维分
   4. 保存 scores json（data/scores/{char}_scores.json）
-  5. 写回 Excel（D:I + L 清空 + 公式保留 + 校验）到 data/output/{char}_all_data_new_已评分.xlsx
+  5. 写回 Excel（D:I + L 清空 + 公式保留 + 校验）到 data/output/{char}{input_suffix}{output_suffix}.xlsx
   6. 返回统计结果（含笔画数异常名单）
 """
 from __future__ import annotations
@@ -24,7 +24,7 @@ from common.excel_utils import (
     write_scores,
 )
 from common.image_utils import load_image, resize_keep_ratio
-from common.io_utils import ensure_dir, save_json
+from common.io_utils import ensure_dir, output_workbook_path, progress_bar, save_json, source_workbook_path
 from config import load_config, resolve_path
 from features.features import extract_features
 from scoring.score_mapper import map_scores_batch
@@ -102,7 +102,8 @@ def run_char(char: str, cfg: dict, args) -> dict:
     if problems:
         return {"char": char, "status": "no_anchor", "problems": problems}
 
-    workbook = source_dir / f"{char}_all_data_new.xlsx"
+    input_suffix = cfg["paths"].get("input_suffix", "_all_data_new")
+    workbook = source_workbook_path(source_dir, char, input_suffix)
     if not workbook.exists():
         return {"char": char, "status": "no_source", "problems": [f"源工作簿不存在: {workbook}"]}
 
@@ -118,10 +119,16 @@ def run_char(char: str, cfg: dict, args) -> dict:
     images = extract_images_by_row(ws, cols=(3,))
     rows = sorted(images)
 
+    scores_path = scores_dir / f"{char}_scores.json"
+    print(f"[处理] 字={char} | 待打分样本量={len(rows)} | 打分表保存: {scores_path}")
+
     records: dict[int, dict] = {}
     feats_list: list[dict] = []
-    for row in rows:
+    total_rows = len(rows)
+    for i, row in enumerate(rows, 1):
         feats_list.append(extract_features(resize_keep_ratio(images[row][3], STANDARD_SIZE), n_colors=args.n_colors))
+        if total_rows > 50:
+            progress_bar(i, total_rows, prefix=f"{char} 打分进度")
 
     scores_list, _, details = map_scores_batch(
         feats_list,
@@ -142,7 +149,6 @@ def run_char(char: str, cfg: dict, args) -> dict:
         records[row] = {"row": row, **{dim: round(scores[dim], 2) for dim in dims_cfg}}
 
     # 保存 scores json
-    scores_path = scores_dir / f"{char}_scores.json"
     save_json(scores_path, list(records.values()))
 
     # 写回 Excel（可选：新增 ai特征值 sheet）
@@ -155,7 +161,7 @@ def run_char(char: str, cfg: dict, args) -> dict:
     if details is not None:
         add_feature_sheet(ws2, details, rows)
     set_full_recalc(wb2)
-    output_path = output_dir / f"{char}{cfg['batch']['output_suffix']}"
+    output_path = output_workbook_path(output_dir, char, input_suffix, cfg["batch"]["output_suffix"])
     wb2.save(output_path)
 
     totals = [sum(rec[d] for d in dims_cfg) for rec in records.values()]

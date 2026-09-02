@@ -35,11 +35,11 @@ AI_scoring_2\
 ├── src\                     # 全部代码
 │   ├── main.py              # CLI 统一入口（所有命令从这里进）
 │   ├── config.py            # 配置加载（读 config.json）
-│   ├── config.json          # 全局配置（路径/维度上限/校准参数）
+│   ├── config.json          # 全局配置（路径/input_suffix/维度上限/校准参数）
 │   ├── init_anchor.py       # 生成锚点目录模板
 │   ├── apply_scores.py      # 从 scores json 单独写回 Excel
 │   ├── common\              # ★ 可复用公共库（业务模块只 import 不复制）
-│   │   ├── io_utils.py      #   路径/JSON 读写/字符清单/源目录扫描
+│   │   ├── io_utils.py      #   路径/JSON 读写/源工作簿路径拼接/字符清单/进度条
 │   │   ├── image_utils.py   #   图像加载/颜色量化/笔画分离/骨架化/端点交叉点
 │   │   ├── excel_utils.py   #   openpyxl 封装（提图/写分/公式保留/校验）
 │   │   ├── anchor_utils.py  #   锚点模板/配置解析/目录校验
@@ -138,7 +138,7 @@ python main.py feature-check --char 刀
 # 单字（推荐先验证）
 python main.py run-all --char 上 --save-features
 
-# 全量（扫描源目录全部 *_all_data_new.xlsx）
+# 全量（扫描源目录全部 {字}{input_suffix}.xlsx）
 python main.py run-all
 
 # 指定清单文件
@@ -153,7 +153,11 @@ python main.py run-all --chars-file data\chars.txt
 | `--save-features` | False | 在成品 xlsx 新增"ai特征值"sheet |
 | `--source-dir` / `--anchors-dir` | 取 config | 源/锚点目录 |
 
-产出：`data\scores\{字}_scores.json`、`data\output\{字}_all_data_new_已评分.xlsx`、`summary.csv`。缺锚点的字跳过不阻塞。
+产出：`data\scores\{字}_scores.json`、`data\output\{字}{input_suffix}{output_suffix}.xlsx`、`summary.csv`。缺锚点的字跳过不阻塞。
+
+**换数据源**：修改 `config.json` 的 `source_dir`（目录）和 `paths.input_suffix`（文件后缀，如 `_all_data_new` 或 `-打分表-1`），源文件名即 `{字}{input_suffix}.xlsx`，代码不用改。
+
+运行时输出：每字打印 `[处理] 字=X | 待打分样本量=N | 打分表保存: ...`；样本量 >50 时特征提取阶段显示终端进度条。
 
 ### 5. 单独写回 `apply-scores`
 
@@ -168,11 +172,11 @@ python main.py apply-scores --char 上
 ## 六、数据流
 
 ```
-源 xlsx（C 列分割图）
+源 xlsx（{字}{input_suffix}.xlsx，C 列分割图）
   → extract_features（六维特征，内存）
   → map_scores_batch（锚点偏差 + 分布校准 → 六维分）
   → data/scores/{字}_scores.json
-  → 写回 data/output/{字}_all_data_new_已评分.xlsx
+  → 写回 data/output/{字}{input_suffix}{output_suffix}.xlsx
       ├── 评分汇总 sheet（D:I 六维分 + J/K/M 公式，L 留空给老师）
       └──（--save-features 时）ai特征值 sheet
 ```
@@ -206,6 +210,7 @@ python main.py run-all --char 新字 --save-features
 | 问题 | 处理 |
 |---|---|
 | 写回报 `PermissionError` | 输出 xlsx 正被 Excel/WPS 打开，关闭后重跑或 `apply-scores` 补写回 |
+| 换数据源（文件名不同） | 改 `config.json`：`source_dir`（目录）+ `paths.input_suffix`（后缀，如 `-打分表-1`），源文件名 = `{字}{input_suffix}.xlsx` |
 | 分数分布整体偏低/偏高 | 检查 `config.json` 的 `calibration.enabled`（默认 true）；换更合理的锚点图 |
 | 某字被跳过 | 缺锚点：`data\anchors\{字}\` 未放三张图；补齐后 `run-all --char 字` 单字重跑 |
 | 报告"笔画数异常" | 分割图缺笔/粘连，该样本标记复核，不参与评分 |

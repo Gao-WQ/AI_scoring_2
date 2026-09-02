@@ -11,6 +11,7 @@ from collections import Counter
 from pathlib import Path
 
 from common.excel_utils import first_sheet, load_workbook, extract_images_by_row
+from common.io_utils import source_workbook_path
 from config import load_config, resolve_path
 from features.stroke_separate import check_stroke_count
 
@@ -29,7 +30,7 @@ def get_args(argv: list[str] | None = None) -> argparse.Namespace:
 def run(args: argparse.Namespace) -> None:
     cfg = load_config(args.config)
     source_dir = args.source_dir or resolve_path(cfg, "source_dir")
-    workbook = source_dir / f"{args.char}_all_data_new.xlsx"
+    workbook = source_workbook_path(source_dir, args.char, cfg["paths"].get("input_suffix", "_all_data_new"))
     if not workbook.exists():
         raise SystemExit(f"源工作簿不存在: {workbook}")
 
