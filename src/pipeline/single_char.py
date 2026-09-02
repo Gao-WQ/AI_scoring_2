@@ -2,7 +2,7 @@
 """单字处理流水线：锚点加载 → 样本特征 → 锚点刻度插值 → scores json → 写回 Excel。
 
 流程（对单个字）：
-  1. 校验并加载锚点（data/anchors/{char}/），按 anchor.json 条目提取全部锚点特征
+  1. 校验并加载锚点（data/anchors/{char}/），按 anchor{count}.json（args.anchor_count 指定档位）提取锚点特征
   2. 读源工作簿（{source_dir}/{char}{input_suffix}.xlsx），提取 C 列分割图
   3. 逐样本提取特征并做 N 锚点分段插值映射，得到六维分
   4. 保存 scores json（data/scores/{char}_scores.json）
@@ -79,12 +79,12 @@ def add_feature_sheet(ws2, details: dict, rows: list[int]) -> None:
         )
 
 
-def _anchor_features(anchors_dir: Path, char: str) -> dict:
-    """按 anchor.json 条目加载全部锚点图并提取特征。
+def _anchor_features(anchors_dir: Path, char: str, anchor_count: int) -> dict:
+    """按 anchor{count}.json 条目加载对应序号锚点图并提取特征。
 
     返回 {"anchors": [{"file", "score_ratio", "label", "feats"}, ...]}，第 0 个为满分锚点。
     """
-    anchor_cfg = load_anchor_config(anchors_dir, char)
+    anchor_cfg = load_anchor_config(anchors_dir, char, anchor_count)
     anchors = []
     for item in anchor_cfg["anchors"]:
         img = load_image(anchors_dir / char / item["file"])
@@ -108,7 +108,10 @@ def run_char(char: str, cfg: dict, args) -> dict:
     ensure_dir(scores_dir)
     ensure_dir(output_dir)
 
-    problems = validate_anchor_dir(anchors_dir, char)
+    # 锚点档位：命令行 --anchor-count 优先，其次 config.anchor_defaults.anchor_count，最后默认 3
+    anchor_count = getattr(args, "anchor_count", None) or cfg.get("anchor_defaults", {}).get("anchor_count", 3)
+
+    problems = validate_anchor_dir(anchors_dir, char, anchor_count)
     if problems:
         return {"char": char, "status": "no_anchor", "problems": problems}
 
@@ -117,7 +120,7 @@ def run_char(char: str, cfg: dict, args) -> dict:
     if not workbook.exists():
         return {"char": char, "status": "no_source", "problems": [f"源工作簿不存在: {workbook}"]}
 
-    anchor_feats = _anchor_features(anchors_dir, char)
+    anchor_feats = _anchor_features(anchors_dir, char, anchor_count)
     dims_cfg = cfg["dimensions"]
     step = cfg["scoring"]["step"]
     min_score = cfg["scoring"]["min_score"]
@@ -128,7 +131,7 @@ def run_char(char: str, cfg: dict, args) -> dict:
     rows = sorted(images)
 
     scores_path = scores_dir / f"{char}_scores.json"
-    print(f"[处理] 字={char} | 待打分样本量={len(rows)} | 打分表保存: {scores_path}")
+    print(f"[处理] 字={char} | 锚点={anchor_count}档 | 待打分样本量={len(rows)} | 打分表保存: {scores_path}")
 
     records: dict[int, dict] = {}
     feats_list: list[dict] = []
@@ -151,7 +154,7 @@ def run_char(char: str, cfg: dict, args) -> dict:
     for idx, scores in enumerate(scores_list):
         row = rows[idx]
         if scores is None:
-            anomalies.append({"row": row, "reason": f"笔画数={feats_list[idx]['n_strokes']}（锚点={anchor_feats['perfect']['n_strokes']}）"})
+            anomalies.append({"row": row, "reason": f"笔画数={feats_list[idx]['n_strokes']}（锚点={anchor_feats['anchors'][0]['feats']['n_strokes']}）"})
             continue
         records[row] = {"row": row, **{dim: round(scores[dim], 2) for dim in dims_cfg}}
 

@@ -6,6 +6,47 @@
 
 ---
 
+## v5（commit `ecbf952`）— 锚点档位 3/5/9 + 数字图池 1~9.png + anchor{count}.json 分档并存
+
+- 日期：2026-09-02
+- 类型：锚点组织重构（不兼容旧版 anchor.json / perfect·level_* 命名）
+- 说明：锚点数由 3/6/9 调整为 **3/5/9**；图片统一为共享图池 `1.png`~`9.png`（1=perfect、5=fair、9=worst）；每字目录支持 `anchor3.json` / `anchor5.json` / `anchor9.json` 并存，`run-all` 用 `--anchor-count 3/5/9` 选档。
+
+### 改动内容
+
+| 模块 | 改动 |
+|---|---|
+| `src/common/anchor_utils.py` | **不兼容重构**：配置文件名按档位定位 `anchor{count}.json`（无旧 anchor.json 回退）；档位→图序号固定映射（3→[1,5,9]，5→[1,3,5,7,9]，9→[1..9]）；`load_anchor_config`/`validate_anchor_dir` 增加 `anchor_count` 参数并严格校验条数==档位；label 约定首 perfect / 末 worst / 中档 fair；删除 `ANCHOR_KEYS`、`_default_file`、旧 dict 兼容逻辑 |
+| `src/config.json` | `anchor_defaults` 新增 `anchor_count: 3`（默认档位）；`score_levels` 调整为 3/5/9 三套独立 ratio（删 6 档）；5 档默认 5 等分 [1.0, 0.78, 0.55, 0.32, 0.1] |
+| `src/pipeline/single_char.py` | `run_char` 读取 `--anchor-count`（缺省取 config）；校验/加载/锚点特征全链路透传档位；处理打印加 `锚点=N档`；修复异常样本提示引用锚点特征 KeyError 隐患（改经 anchors[0]） |
+| `src/pipeline/run_all.py` / `src/main.py` | `run-all` 新增 `--anchor-count 3/5/9`；init-anchor `--count` 帮助改 3/5/9 |
+| `src/init_anchor.py` | 生成模板文件名改 `anchor{count}.json`；档位限制 3/5/9（非法即退出并提示）；输出改用图池说明 |
+| 文档 | `README.md` / `使用说明.docx` / `AI预打分方案_v6.docx` 同步（图池规范、三档 json、--anchor-count 用法）；本 CHANGELOG 同步 |
+
+### 档位与图池（config.json → anchor_defaults）
+
+| 档位 | 图序号 | 默认 ratio |
+|---|---|---|
+| 3 | 1 / 5 / 9 | 1.0 / 0.425 / 0.125 |
+| 5 | 1 / 3 / 5 / 7 / 9 | 1.0 / 0.78 / 0.55 / 0.32 / 0.1 |
+| 9 | 1 ~ 9 | 1.0 / 0.85 / 0.7 / 0.55 / 0.425 / 0.3 / 0.2 / 0.125 / 0.05 |
+
+### 用法变化
+
+```bash
+python main.py init-anchor --char 刀 --count 9     # 生成 anchor9.json 模板（图池 1~9.png）
+python main.py run-all --char 刀 --anchor-count 5  # 按 anchor5.json（1/3/5/7/9.png）跑分
+```
+
+### 验证结果
+
+- 3/5/9 档模板生成、ratio/label/file 与 config 表一致（冒烟通过）
+- 无图校验报缺图；放图后校验通过；load 对条数≠档位的 json 正确拦截
+- 非法档位（6）在模板生成与 run-all 两处均被拦截并给出明确提示
+- 评分映射 3/5/9 三档均可正常出分（满分样本 80.0，0 异常）
+
+---
+
 ## v4（commit `be3c27b`）— 多锚点档位可配置（3/6/9）+ 校准标签定位修复
 
 - 日期：2026-09-02
@@ -159,4 +200,8 @@
 | `53ce5fb` | 文档：README/使用说明/方案v4 + 细节调整 |
 | `8ac290e` | v3.1 输入输出后缀可配置 + 运行时打印与进度条 |
 | `343a0c4` | fix: map_scores_batch 固定返回 3 元组；run_all 汇总输出调整 |
+| `6843fbe` | chore: 移除临时配置 config_t.json；CHANGELOG 记录 v3.1 commit hash |
 | `be3c27b` | v4 多锚点档位可配置（3/6/9）+ 校准标签定位修复 |
+| `124e1c1` | chore: 移除临时配置 config_t.json；CHANGELOG 记录 v4 commit hash |
+| `032488c` | docs: 使用说明.docx 同步多锚点（--count 3/6/9、N 张锚点说明） |
+| `待回填` | v5 锚点档位 3/5/9 + 数字图池 1~9.png + anchor{count}.json 分档并存 |

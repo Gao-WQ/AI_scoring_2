@@ -19,7 +19,7 @@ def get_args() -> argparse.Namespace:
 
     p_init = sub.add_parser("init-anchor", help="生成锚点目录模板")
     p_init.add_argument("--char", type=str, default="刀", help="字名（默认 刀）")
-    p_init.add_argument("--count", type=int, default=None, help="锚点档位数 3/6/9（默认取 config）")
+    p_init.add_argument("--count", type=int, default=None, help="锚点档位数 3/5/9（默认取 config）")
     p_init.add_argument("--anchor-dir", type=Path, default=None, help="锚点根目录（默认取 config）")
 
     p_stroke = sub.add_parser("stroke-check", help="笔画分离质量验证（颜色数 vs 实际笔画数）")
@@ -43,6 +43,7 @@ def get_args() -> argparse.Namespace:
     p_run.add_argument("--save-features", action="store_true", default=False, help="保存评分中间值（特征+偏差+刻度）到 data/features/{char}_score_details.json")
     p_run.add_argument("--source-dir", type=Path, default=None, help="源工作簿目录（默认取 config）")
     p_run.add_argument("--anchors-dir", type=Path, default=None, help="锚点根目录（默认取 config）")
+    p_run.add_argument("--anchor-count", type=int, default=None, help="锚点档位数 3/5/9（默认取 config.anchor_defaults.anchor_count）")
 
     p_apply = sub.add_parser("apply-scores", help="从 scores json 写回 Excel（独立入口）")
     p_apply.add_argument("--char", type=str, default="上", help="字名（默认 上）")

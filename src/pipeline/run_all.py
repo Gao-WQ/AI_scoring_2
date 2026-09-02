@@ -23,6 +23,7 @@ def get_args(argv: list[str] | None = None) -> argparse.Namespace:
     parser.add_argument("--save-features", action="store_true", default=False, help="保存评分中间值（特征+偏差+刻度）到 data/features/{char}_score_details.json")
     parser.add_argument("--source-dir", type=Path, default=None, help="源工作簿目录（默认取 config）")
     parser.add_argument("--anchors-dir", type=Path, default=None, help="锚点根目录（默认取 config）")
+    parser.add_argument("--anchor-count", type=int, default=None, help="锚点档位数 3/5/9（默认取 config.anchor_defaults.anchor_count）")
     parser.add_argument("--config", type=Path, default=None, help="config.json 路径（默认 src/config.json）")
     return parser.parse_args(argv)
 
@@ -36,7 +37,8 @@ def run(args: argparse.Namespace) -> None:
     chars = resolve_char_list(source_dir, args.chars_file, cfg["paths"].get("input_suffix", "_all_data_new"))
     if args.char:
         chars = [args.char]
-    print(f"待处理字（{len(chars)} 个）: {chars}")
+    anchor_count = args.anchor_count or cfg.get("anchor_defaults", {}).get("anchor_count", 3)
+    print(f"待处理字（{len(chars)} 个）: {chars} | 锚点档位={anchor_count}")
 
     results = [run_char(char, cfg, args) for char in chars]
     # summary_path = output_dir / "summary.csv"
